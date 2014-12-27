@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<!-- 
+http://demos.jquerymobile.com/1.2.1/docs/forms/forms-all.html
+!-->
+
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>GazRos</title>
+  <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="http://code.jquery.com/mobile/1.2.1/jquery.mobile-1.2.1.min.css" />
+    <script src="http://code.jquery.com/jquery-1.8.3.min.js"></script>
+    <script src="http://code.jquery.com/mobile/1.2.1/jquery.mobile-1.2.1.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+<style type="text/css">
+  .done {
+    text-decoration: line-through;
+  }
+    .container {
+        margin-top: 20px;
+    }
+    .create-todo {
+        margin-top: 20px;
+    }
+</style>
+ 
+<div id="todos">
+    <div data-role="header" data-theme="b">
+        <h1>Текущие заказы</h1>
+    </div>
+
+    <div role="main" class="container" data-theme="f">
+        <ul class="todos"  data-role="listview" data-inset="true" data-filter="true"></ul>
+    </div>
+
+    <form role="form" class="create-todo">
+    <div class="form-group ui-body ui-body-b">
+    <div class="row">
+        <div class="col-xs-2">
+            <label for="time_date">Дата:</label>
+        </div>
+        <div class="col-xs-10">
+            <input type="date" name="time_date" id="time_date">
+        </div>
+        <div class="col-xs-1">
+            <label for="time_from">С:</label>
+        </div>
+        <div class="col-xs-5">
+            <input type="time" name="time_from" id="time_from">
+        </div>
+        <div class="col-xs-1">
+            <label for="time_to">По:</label>
+        </div>
+        <div class="col-xs-5">
+            <input type="time" name="time_to" id="time_to">
+        </div>
+        <div class="col-xs-2">
+            <label for="addr_from">Откуда:</label>
+        </div>
+        <div class="col-xs-10">
+            <input type="text" name="addr_from" id="addr_from" placeholder="Адрес отправления">
+        </div>
+        <div class="col-xs-2"><label for="addr_to">Куда:</label></div>
+        <div class="col-xs-10"><input type="text" name="addr_to" id="addr_to" placeholder="Адрес прибытия"></div>
+        <div class="col-xs-2"><label for="prise">Цена:</label></div>
+        <div class="col-xs-10"><input type="number" name="prise" id="prise" placeholder="800.00" step="100"></div>
+        <div class="col-xs-3"><label for="phone">Контактный телефон:</label></div>
+        <div class="col-xs-9"><input type="tel" id="phone" name="phone" placeholder="(831)247-47-47"></div>
+        <div class="col-xs-3"><label for="email">Почта:</label></div>
+        <div class="col-xs-9"><input type="email" id="email"name="email" placeholder="email@google.com"></div>
+        <div class="col-xs-3"><label for="description">Условия:</label></div>
+        <div class="col-xs-9"><input type="text" id="description" name="description" placeholder="Условия, например: пианино, 9 этаж"></div>
+    </div>
+        <button type="submit" data-theme="b" data-icon="star" class="btn btn-info col-md-12">Добавить</button>
+    </div>
+  </form>
+</div>
+
+
+<script>
+
+  var socket = io.connect();
+  var el = $('#todos');
+  var flag=false
+  var app = {
+    addTodo: function(todo) {
+            var element = el.find('[data-id="' + todo.id + '"]');
+
+            if(element.size()<=0) {
+                var html = '<li class="page-header checkbox" data-id="' + todo.id + '">' +
+                        '<a href="javascript://" class="pull-right delete">' +
+                        '<span class="glyphicon glyphicon-remove"></span></a>' +
+                        '<label><input type="checkbox" name="done">' +
+                        '<b>Заказ №:' + todo.id + '</b> <br>' + todo.time_date +' '+ todo.time_from + '-' + todo.time_to +'|' + todo.addr_from + '->' + todo.addr_to + ' | ' + todo.prise + 'руб.' + '<br><i>'+todo.description+'</i>'+
+                        '</label>' +
+                        '</li>';
+                el.find('.todos').append(html);
+            }
+        app.updateTodo(todo);
+
+    },
+    removeTodo: function(todo) {
+      el.find('[data-id="' + todo.id + '"]').remove();
+    },
+    updateTodo: function(todo) {
+      var element = el.find('[data-id="' + todo.id + '"]');
+      var checkbox = element.find('[name="done"]').removeAttr('disabled');
+
+      if(todo.done) {
+        element.addClass('done');
+        checkbox.prop('checked', true);
+      } else {
+        element.removeClass('done');
+        checkbox.prop('checked', false);
+      }
+    },
+    errorHandler: function(error) {
+      if(error) {
+     <!--   alert("Произошла ошибка:"+error.message); !-->
+      }
+    }
+  };
+ 
+  el.on('submit', 'form', function (ev) {
+  if(flag) {
+
+        var field_time_date = $(this).find('[name="time_date"]');
+        var field_time_from = $(this).find('[name="time_from"]');
+        var field_time_to = $(this).find('[name="time_to"]');
+        var field_addr_from = $(this).find('[name="addr_from"]');
+        var field_addr_to = $(this).find('[name="addr_to"]');
+        var field_prise = $(this).find('[name="prise"]');
+        var field_phone = $(this).find('[name="phone"]');
+        var field_email = $(this).find('[name="email"]');
+        var field_description = $(this).find('[name="description"]');
+
+        socket.emit('todos::create', {
+            time_date: field_time_date.val(),
+            time_from: field_time_from.val(),
+            time_to: field_time_to.val(),
+            addr_from: field_addr_from.val(),
+            addr_to: field_addr_to.val(),
+            prise: field_prise.val(),
+            phone: field_phone.val(),
+            email: field_email.val(),
+            description: field_description.val()
+        }, {}, app.errorHandler);
+        ev.preventDefault();
+      window.location.replace("http://localhost:4000");
+          }
+    else {
+        flag = true;
+      ev.preventDefault();
+
+    }
+  }).on('click', '.delete', function (ev) {
+    var id = $(this).parents('li').data('id');
+    socket.emit('todos::remove', id, {}, app.errorHandler);
+    ev.preventDefault();
+  }).on('click', '[name="done"]', function(ev) {
+    var id = $(this).parents('li').data('id');
+ 
+    $(this).attr('disabled', 'disabled');
+ 
+    socket.emit('todos::update', id, {
+      done: $(this).is(':checked')
+    }, {}, app.errorHandler);
+  });
+ 
+  socket.on('todos updated', app.updateTodo);
+  socket.on('todos removed', app.removeTodo);
+  socket.on('todos created', app.addTodo);
+  socket.emit('todos::find', {}, function (error, todos) {
+    todos.forEach(app.addTodo);
+  });
+</script>
+
+</body>
+</html> 
